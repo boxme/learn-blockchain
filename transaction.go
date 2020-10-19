@@ -24,7 +24,7 @@ type Transaction struct {
 	Vout []TXOutput
 }
 
-// Checks whether the transaction is coinbase
+// IsCoinbase checks whether the transaction is coinbase
 func (tx Transaction) IsCoinbase() bool {
 	return len(tx.Vin) == 1 && len(tx.Vin[0].Txid) == 0 && tx.Vin[0].Vout == -1
 }
@@ -42,8 +42,8 @@ func NewCoinbaseTX(to, data string) *Transaction {
 	return &tx
 }
 
-// Creates a new Transaction
-func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transaction {
+// NewUTXOTransaction creates a new Transaction
+func NewUTXOTransaction(from, to string, amount int, UTXOSet *UTXOSet) *Transaction {
 	inputs := []TXInput{}
 	outputs := []TXOutput{}
 
@@ -54,7 +54,7 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 
 	wallet := wallets.GetWallet(from)
 	pubKeyHash := HashPubKey(wallet.PublicKey)
-	acc, validOutputs := bc.FindSpendableOutputs(pubKeyHash, amount)
+	acc, validOutputs := UTXOSet.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
 		log.Panic("Not enough funds")
@@ -82,7 +82,7 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 
 	tx := Transaction{nil, inputs, outputs}
 	tx.ID = tx.Hash()
-	bc.SignTransaction(&tx, wallet.PrivateKey)
+	UTXOSet.Blockchain.SignTransaction(&tx, wallet.PrivateKey)
 
 	return &tx
 }
@@ -118,7 +118,7 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 	}
 }
 
-// Creates a trimmed copy of Transaction to be used in signing
+// TrimmedCopy creates a trimmed copy of Transaction to be used in signing
 func (tx *Transaction) TrimmedCopy() Transaction {
 	inputs := []TXInput{}
 	outputs := []TXOutput{}
@@ -135,7 +135,7 @@ func (tx *Transaction) TrimmedCopy() Transaction {
 	return Transaction{tx.ID, inputs, outputs}
 }
 
-// Returns the hash of the Transaction
+// Hash returns the hash of the Transaction
 func (tx *Transaction) Hash() []byte {
 	hash := [32]byte{}
 	txCopy := *tx
